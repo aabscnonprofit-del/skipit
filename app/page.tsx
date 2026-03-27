@@ -8,7 +8,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// расстояние между точками (в км)
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -25,58 +24,33 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 export default function Home() {
   const [reports, setReports] = useState<any[]>([])
-  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null)
+  const [userLocation, setUserLocation] = useState<any>(null)
+  const [radius, setRadius] = useState(10)
 
   useEffect(() => {
-    getUserLocation()
+    navigator.geolocation.getCurrentPosition((pos) => {
+      setUserLocation({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      })
+    })
   }, [])
 
   useEffect(() => {
-    if (userLocation) {
-      fetchReports()
-    }
-  }, [userLocation])
-
-  function getUserLocation() {
-    if (!navigator.geolocation) {
-      console.log('No geolocation')
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLocation({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude
-        })
-      },
-      (err) => {
-        console.log('Location error', err)
-      }
-    )
-  }
+    if (userLocation) fetchReports()
+  }, [userLocation, radius])
 
   async function fetchReports() {
-    const { data, error } = await supabase
-      .from('reports')
-      .select('*')
-
-    if (error) {
-      console.error(error)
-      return
-    }
+    const { data } = await supabase.from('reports').select('*')
 
     const filtered = (data || []).filter((r) => {
-      if (!userLocation) return true
-
-      const distance = getDistance(
+      const d = getDistance(
         userLocation.lat,
         userLocation.lng,
         r.lat,
         r.lng
       )
-
-      return distance < 10 // радиус 10 км
+      return d < radius
     })
 
     setReports(filtered)
@@ -86,7 +60,12 @@ export default function Home() {
     <div style={{ padding: 20 }}>
       <h1>ACTIVE SIGNALS</h1>
 
-      {!userLocation && <div>Getting your location...</div>}
+      <div style={{ marginBottom: 20 }}>
+        Radius:
+        <button onClick={() => setRadius(5)}>5 km</button>
+        <button onClick={() => setRadius(10)}>10 km</button>
+        <button onClick={() => setRadius(50)}>50 km</button>
+      </div>
 
       {reports.map((r) => (
         <div key={r.id} style={{ marginBottom: 10 }}>
