@@ -28,12 +28,17 @@ export default function Home() {
   const [radius, setRadius] = useState(10)
 
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setUserLocation({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude
-      })
-    })
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        })
+      },
+      (err) => {
+        console.log('Geo error:', err)
+      }
+    )
   }, [])
 
   useEffect(() => {
@@ -41,7 +46,12 @@ export default function Home() {
   }, [userLocation, radius])
 
   async function fetchReports() {
-    const { data } = await supabase.from('reports').select('*')
+    const { data, error } = await supabase.from('reports').select('*')
+
+    if (error) {
+      console.error(error)
+      return
+    }
 
     const filtered = (data || []).filter((r) => {
       const d = getDistance(
@@ -57,18 +67,37 @@ export default function Home() {
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>ACTIVE SIGNALS</h1>
+    <div style={{ padding: 20, color: 'white', background: '#111', minHeight: '100vh' }}>
+      <h1 style={{ marginBottom: 20 }}>ACTIVE SIGNALS</h1>
 
       <div style={{ marginBottom: 20 }}>
-        Radius:
-        <button onClick={() => setRadius(5)}>5 km</button>
-        <button onClick={() => setRadius(10)}>10 km</button>
-        <button onClick={() => setRadius(50)}>50 km</button>
+        <span>Radius:</span>
+
+        <button onClick={() => setRadius(5)} style={{ marginLeft: 10 }}>
+          5 km
+        </button>
+
+        <button onClick={() => setRadius(10)} style={{ marginLeft: 10 }}>
+          10 km
+        </button>
+
+        <button onClick={() => setRadius(50)} style={{ marginLeft: 10 }}>
+          50 km
+        </button>
       </div>
 
+      {!userLocation && <div>Getting your location...</div>}
+
       {reports.map((r) => (
-        <div key={r.id} style={{ marginBottom: 10 }}>
+        <div
+          key={r.id}
+          style={{
+            border: '1px solid #333',
+            padding: 10,
+            marginBottom: 10,
+            borderRadius: 8
+          }}
+        >
           {r.location_name}
         </div>
       ))}
