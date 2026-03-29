@@ -1,106 +1,70 @@
-'use client'
+"use client"
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { useEffect, useState } from "react"
+import Link from "next/link"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2)
-
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+type Report = {
+  id: string
+  location_name: string | null
+  issue_type: string | null
 }
 
-export default function Home() {
-  const [reports, setReports] = useState<any[]>([])
-  const [userLocation, setUserLocation] = useState<any>(null)
-  const [radius, setRadius] = useState(10)
+export default function HomePage() {
+  const [reports, setReports] = useState<Report[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setUserLocation({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude
-        })
+        fetch(`/api/reports/list?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`)
+          .then((res) => res.json())
+          .then((data) => {
+            setReports(Array.isArray(data?.data) ? data.data : [])
+            setLoading(false)
+          })
+          .catch(() => {
+            setReports([])
+            setLoading(false)
+          })
       },
-      (err) => {
-        console.log('Geo error:', err)
+      () => {
+        // если геолокация не дала
+        fetch("/api/reports/list")
+          .then((res) => res.json())
+          .then((data) => {
+            setReports(Array.isArray(data?.data) ? data.data : [])
+            setLoading(false)
+          })
       }
     )
   }, [])
 
-  useEffect(() => {
-    if (userLocation) fetchReports()
-  }, [userLocation, radius])
-
-  async function fetchReports() {
-    const { data, error } = await supabase.from('reports').select('*')
-
-    if (error) {
-      console.error(error)
-      return
-    }
-
-    const filtered = (data || []).filter((r) => {
-      const d = getDistance(
-        userLocation.lat,
-        userLocation.lng,
-        r.lat,
-        r.lng
-      )
-      return d < radius
-    })
-
-    setReports(filtered)
-  }
-
   return (
-    <div style={{ padding: 20, color: 'white', background: '#111', minHeight: '100vh' }}>
-      <h1 style={{ marginBottom: 20 }}>ACTIVE SIGNALS</h1>
+    <div className="p-4 space-y-3 text-white">
+      <h1 className="text-lg font-bold">ACTIVE SIGNALS</h1>
 
-      <div style={{ marginBottom: 20 }}>
-        <span>Radius:</span>
+      {loading && <div>Getting your location...</div>}
 
-        <button onClick={() => setRadius(5)} style={{ marginLeft: 10 }}>
-          5 km
-        </button>
+      {!loading && reports.length === 0 && (
+        <div>No signals nearby</div>
+      )}
 
-        <button onClick={() => setRadius(10)} style={{ marginLeft: 10 }}>
-          10 km
-        </button>
+      {!loading &&
+        reports.map((r) => (
+          <Link key={r.id} href={`/report/${r.id}`}>
+            <div className="bg-zinc-800 p-3 rounded-xl cursor-pointer hover:bg-zinc-700 transition">
+              
+              <div className="font-bold">
+                {r.location_name || "Unknown"}
+              </div>
 
-        <button onClick={() => setRadius(50)} style={{ marginLeft: 10 }}>
-          50 km
-        </button>
-      </div>
+              <div className="text-yellow-400">
+                {r.issue_type || "unknown"}
+              </div>
 
-      {!userLocation && <div>Getting your location...</div>}
-
-      {reports.map((r) => (
-        <div
-          key={r.id}
-          style={{
-            border: '1px solid #333',
-            padding: 10,
-            marginBottom: 10,
-            borderRadius: 8
-          }}
-        >
-          {r.location_name}
-        </div>
-      ))}
+            </div>
+          </Link>
+        ))}
     </div>
   )
 }
