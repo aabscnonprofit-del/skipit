@@ -1,35 +1,59 @@
-import ReportForm from "@/components/ReportForm"
+'use client'
+
+import { useState } from 'react'
 
 export default function ReportPage() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/reports/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          location_name: 'Manual test',
+          issue_type: 'delay',
+          platform: 'uber_eats',
+          description: 'test submit',
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed')
+      }
+
+      alert('SUCCESS ✅')
+    } catch (e: any) {
+      setError(e.message)
+    }
+
+    setLoading(false)
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="p-6 text-white">
+      <h1 className="text-xl mb-6">TEST SUBMIT</h1>
 
-      {/* HEADER */}
-      <div className="pt-2">
-        <h1 className="font-mono text-2xl font-black text-white uppercase tracking-tight leading-tight">
-          File a <br />
-          <span className="text-yellow-400">Report</span>
-        </h1>
+      <button
+        onClick={handleSubmit}
+        className="bg-yellow-400 text-black px-6 py-3 rounded-xl"
+      >
+        {loading ? 'Sending...' : 'Submit'}
+      </button>
 
-        <p className="font-mono text-sm text-white/80 mt-2">
-          Help other drivers avoid bad stops
-        </p>
-      </div>
-
-      {/* FORM */}
-      <div className="bg-zinc-900/70 border border-zinc-700 rounded-2xl p-5 shadow-inner">
-        <ReportForm />
-      </div>
-
-      {/* FOOTER */}
-      <div className="pt-2">
-        <p className="font-mono text-xs text-white/60 text-center leading-relaxed">
-          Reports expire automatically after 8 hours.
-          <br />
-          No account required. Your signal helps the community.
-        </p>
-      </div>
-
+      {error && (
+        <div className="mt-4 text-red-500">
+          {error}
+        </div>
+      )}
     </div>
   )
 }
